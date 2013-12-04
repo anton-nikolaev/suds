@@ -1,62 +1,29 @@
-var assert = require("chai").assert;
+var assert = require("assert");
 var request = require("request");
 var Suds = require("../");
 var fs = require("fs");
 var async = require("async");
+var util = require('util');
 
-var wsdlUrl = 'http://www.webservicex.com/globalweather.asmx?WSDL';
+var wsdlUrl = 'http://www.webservicex.net/geoipservice.asmx?WSDL';
 
 describe("suds", function() {
-  describe("callRemote", function() {
-    it("should make a call", function(done) {
-      var suds = new Suds({
-        uri: "http://127.0.0.1:5000/",
-        urn: "http://test.uchi/srv",
-      });
 
-      suds.callRemote("hello", ["world"], function(err, res) {
-        if (err) {
-          return done(err);
-        }
+var Gsuds = new Suds();
+  describe("wsdl", function () {
 
-        console.log(res);
-
-        return done();
-      });
-    });
-
-    it("should make a call to another service", function(done) {
-      this.timeout(30000);
-
-      var suds = new Suds({
-        uri: "http://www.webservicex.com/globalweather.asmx",
-        urn: "http://www.webserviceX.NET",
-      });
-
-      suds.callRemote("GetWeather", ["a", "b"], function(err, res) {
-        if (err) {
-          return done(err);
-        }
-
-        console.log(res);
-
-        return done();
-      });
-    });
-	
-	it("wsdl from url", function (done) {
+	it("should load from url", function (done) {
         this.timeout(30000);
-		var suds = new Suds();
-		suds.loadWsdl(wsdlUrl, function (err) {
+		Gsuds.loadWsdl(wsdlUrl, function (err) {
 			if (err)
 				return done(err);
 			return done();
 		});
 	});
 	
-	it("wsdl from file", function (done) {
+/*
+	it("should load from file", function (done) {
 		this.timeout(30000);
-		return done();
 		
 		var file = '/tmp/.suds.wsdl';
 		async.waterfall([function (step) {
@@ -84,6 +51,32 @@ describe("suds", function() {
 			});
 		});
 	});
+*/
 
+  });
+  describe("callRemote", function() {
+
+    it("should make a call", function(done) {
+      this.timeout(30000);
+
+/*
+      var suds = new Suds({
+        uri: "http://www.webservicex.com/globalweather.asmx",
+        urn: "http://www.webserviceX.NET",
+      });
+	  var suds = new Suds({
+		uri: "http://www.webservicex.net/globalweather.asmx"
+	  });
+*/
+
+	  Gsuds.GetGeoIP([], function (err, res) {
+		assert(!err, err);
+
+        console.log("Result: " + util.inspect(res));
+
+        return done();
+      });
+    });
+	
   });
 });
