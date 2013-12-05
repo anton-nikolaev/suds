@@ -9,52 +9,19 @@ var document = dom.createDocument();
 var parser = new xmldom.DOMParser();
 var serialiser = new xmldom.XMLSerializer();
 
-var makeElement = function makeElement(src) {
-    if (typeof src === "function") {
-        src = src();
-    }
- 
-    if (typeof src === "string") {
-        return document.createTextNode(src);
-    }
- 
-    if (!Array.isArray(src)) {
-        throw new Error("invalid input to makeElement");
-    }
- 
-    var node = document.createElementNS(src[0][0], "tempns:" + src[0][1]);
-    node.setAttribute("xmlns:tempns", src[0][0]);
- 
-    if (src[1]) {
-        for (var k in src[1]) {
-            node.setAttribute(k, src[1][k]);
-        }
-    }
- 
-    src[2].map(makeElement).forEach(function(e) {
-        node.appendChild(e);
-    });
- 
-    return node;
-};
-
 /*
 	var suds = new Suds();
 or
 	var suds = new Suds({
 		headers: [],
-		request: ?,
 		uri: "http://www.webservicex.net/globalweather.asmx"
 	});
+	suds.loadWsdl(file path or url);
 	
-	suds.callRemote(uri, action, method, pameters, function (err) {
+	suds.callRemote(action, parameters, function (err) {
 		...
 	});
 
-	suds.callRemote(null, 'GetWeather', [], [], function (err, res) {
-	});
-
-	suds.loadWsdl(file path or url);
 	
 */
 
@@ -74,12 +41,11 @@ var Suds = module.exports = function Suds(options) {
 
 Suds.prototype._request = request;
 
-Suds.prototype.callRemote = function callRemote(
-	uri, action, method, parameters, cb
-) {
+Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
+    console.log(util.inspect([uri, action, parameters, cb]));
     var self = this;
  
-    var xml = self.createRequestXml(method, parameters);
+    var xml = self.createRequestXml(parameters);
  
     var options = {
         method: "POST",
@@ -88,8 +54,9 @@ Suds.prototype.callRemote = function callRemote(
           "content-type": "text/xml; charset=utf-8",
           "soapaction": action
         },
-        body: xml,
+        body: xml
     };
+    console.log(util.inspect(xml));
  
     this._request.call(this._request, options, function(err, res, data) {
         if (err) {
@@ -113,23 +80,21 @@ Suds.prototype.callRemote = function callRemote(
             return cb(Error("couldn't parse response"));
         }
        
-        try {
-            var result = self._processResponse(doc.documentElement);
-        } catch (e) {
-            return cb(e);
-        }
-       
-        return cb(null, result);
+        self._processResponse(doc.documentElement, function (e, result) {
+            if (e) 
+                return cb(e);
+            return cb(null, result);
+        });
     });
 };
 
-Suds.prototype._processResponse = function _processResponse(doc) {
+Suds.prototype._processResponse = function _processResponse(doc, cb) {
     if ((
         doc.namespaceURI !== "http://schemas.xmlsoap.org/soap/envelope/"
     ) || (
         doc.localName !== "Envelope"
     )) {
-        throw new Error("invalid root tag type in response");
+        cb(new Error("invalid root tag type in response"));
     }
  
     var fault = [].slice.call(doc.childNodes).filter(function(e) {
@@ -138,9 +103,8 @@ Suds.prototype._processResponse = function _processResponse(doc) {
             e.localName === "Fault";
     }).shift();
  
-    if (fault) {
-        throw fault;
-    }
+    if (fault)
+        return cb(fault);
  
     var body = [].slice.call(doc.childNodes).filter(function(e) {
         return
@@ -148,19 +112,27 @@ Suds.prototype._processResponse = function _processResponse(doc) {
             e.localName === "Body";
     }).shift();
  
-    if (!body) {
-        throw new Error("couldn't find response body");
-    }
+    if (!body)
+        return cb(new Error("couldn't find response body"));
  
     var content = [].slice.call(body.childNodes).filter(function(e) {
         return e.localName;
     }).shift();
  
-    return content;
+    cb(null, content);
+};
+
+Suds.prototype.createRequestXml = function createRequestXml(parameters) {
+    return [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
+        serialiser.serializeToString(
+        	this.createRequestDocument(parameters)
+        ),
+    ].join("\n");
 };
 
 Suds.prototype.createRequestDocument = function createRequestDocument(
-	method, parameters
+	parameters
 ) {
     var doc = dom.createDocument();
  
@@ -180,7 +152,6 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
     );
     env.setAttribute("xmlns:xsd", "http://www.w3.org/2001/XMLSchema");
     env.setAttribute("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance");
-    env.setAttribute("xmlns:ns1", method[0]);
  
     env.setAttributeNS(
         "http://schemas.xmlsoap.org/soap/envelope/", 
@@ -189,12 +160,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
     );
  
     this._headers.forEach(function(header) {
-      env.appendChild(makeElement([[
-          "http://schemas.xmlsoap.org/soap/envelope/",
-          "Header"
-      ], null, [
-          header,
-      ]]));
+        // TODO: add custom headers
     });
  
     var body = doc.createElementNS(
@@ -203,31 +169,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
     )
     env.appendChild(body);
  
-    var req = doc.createElementNS(this._urn, ["ns1", method[1]].join(":"));
-    body.appendChild(req);
- 
-    for (var i = 0; i < parameters.length; ++i) {
-        var node = parameters[i];
-       
-        if (!node.localName) {
-            node = makeElement(node);
-        }
-       
-        req.appendChild(node);
-    }
- 
     return doc;
-};
-
-Suds.prototype.createRequestXml = function createRequestXml(
-	method, parameters
-) {
-    return [
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
-        serialiser.serializeToString(
-        	this.createRequestDocument(method, parameters)
-        ),
-    ].join("\n");
 };
 
 var _wsdlOptions = {
@@ -353,8 +295,6 @@ var _wsdlOptions = {
 Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
     var wsdlOptions = Object.create(_wsdlOptions);
  
-    wsdlOptions.request = this._request;
- 
     var self = this;
     WSDL.load(wsdlOptions, wsdlUri, function(err, wsdl) {
         if (err) {
@@ -363,7 +303,6 @@ Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
        
         wsdl.services.forEach(function(service) {
             service.ports.forEach(function(port) {
-                //console.log('service and port: ' + util.inspect(service) + ' ' + util.inspect(port));
                 if (
                 	!port ||
                 	!port.soap ||
@@ -394,8 +333,8 @@ Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
                       return;
                     }
 
-                    var request = [];
-                    var response = [];
+                    var req = [];
+                    var res = [];
 
                     if (binding.soap.binding.style == 'rpc') {
  
@@ -407,11 +346,11 @@ Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
                         ) {
                             return;
                         }
-                        request.push( 
+                        req.push( 
                             operation.input.soap.namespace,
                             operation.input.name
                         );
-                        response.push(
+                        res.push(
                             operation.output.soap.namespace,
                             operation.output.name
                         );
@@ -434,8 +373,7 @@ Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
                     self[operation.name] = self.callRemote.bind(
                         self,
                         port.soap.address.location,
-                        operation.soapOperation.soapAction,
-                        [operation.input.soap.namespace, operation.input.name]
+                        operation.soapOperation.soapAction
                     );
                 });
             });

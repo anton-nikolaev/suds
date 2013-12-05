@@ -9,74 +9,63 @@ var wsdlUrl = 'http://www.webservicex.net/geoipservice.asmx?WSDL';
 
 describe("suds", function() {
 
-var Gsuds = new Suds();
-  describe("wsdl", function () {
+    var Gsuds = new Suds();
 
-	it("should load from url", function (done) {
-        this.timeout(30000);
-		Gsuds.loadWsdl(wsdlUrl, function (err) {
-			if (err)
-				return done(err);
-			return done();
-		});
-	});
+    describe("wsdl", function () {
+
+        it("should load from url", function (done) {
+            this.timeout(30000);
+            Gsuds.loadWsdl(wsdlUrl, function (err) {
+                if (err)
+                    return done(err);
+                return done();
+            });
+        });
 	
 /*
-	it("should load from file", function (done) {
-		this.timeout(30000);
-		
-		var file = '/tmp/.suds.wsdl';
-		async.waterfall([function (step) {
-			request(wsdlUrl, function (err, res, body) {
-				step(err, body);
-			});
-
-		}, function (body, step) {
-			fs.writeFile(file, body, function (err) {
-				step(err);
-			});
-
-		}, function (step) {
-			var suds = new Suds();
-			suds.loadWsdl(file, function (err) {
-				step(err);
-			});
-
-		}], function (err) {
-			fs.exists(file, function (yes) {
-				if (yes)
-					fs.unlink(file, function () { done (err); });
-				else
-					done(err);
+		it("should load from file", function (done) {
+			this.timeout(30000);
+			
+			var file = '/tmp/.suds.wsdl';
+			async.waterfall([function (step) {
+				request(wsdlUrl, function (err, res, body) {
+					step(err, body);
+				});
+    
+			}, function (body, step) {
+				fs.writeFile(file, body, function (err) {
+					step(err);
+				});
+    
+			}, function (step) {
+				var suds = new Suds();
+				suds.loadWsdl(file, function (err) {
+					step(err);
+				});
+    
+			}], function (err) {
+				fs.exists(file, function (yes) {
+					if (yes)
+						fs.unlink(file, function () { done (err); });
+					else
+						done(err);
+				});
 			});
 		});
-	});
 */
-
-  });
-  describe("callRemote", function() {
-
-    it("should make a call", function(done) {
-      this.timeout(30000);
-
-/*
-      var suds = new Suds({
-        uri: "http://www.webservicex.com/globalweather.asmx",
-        urn: "http://www.webserviceX.NET",
-      });
-	  var suds = new Suds({
-		uri: "http://www.webservicex.net/globalweather.asmx"
-	  });
-*/
-
-	  Gsuds.GetGeoIP([], function (err, res) {
-		assert(!err, err);
-
-        console.log("Result: " + util.inspect(res));
-
-        return done();
-      });
     });
-	
-  });
+
+    describe("callRemote", function() {
+ 
+      it("should make a call", function(done) {
+          this.timeout(30000);
+         
+          Gsuds.GetGeoIP([{IPAddress: "212.0.65.2"}], function (err, res) {
+              assert(!err, err);
+              console.log("Result: " + util.inspect(res));
+              return done();
+          });
+      });
+      
+    });
 });
