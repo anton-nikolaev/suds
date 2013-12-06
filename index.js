@@ -168,6 +168,36 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
         "SOAP-ENV:Body"
     )
     env.appendChild(body);
+
+    var data2xml = function (key, data) {
+        var new_element = doc.createElement(key);
+        if ((typeof data === 'object') && (data !== null)) {
+            if ('length' in data) {
+                // array
+                data.forEach(function (item) {
+                    new_element.appendChild(data2xml(key, item));
+                });
+            } else {
+                // object
+                Object.keys(data).forEach(function (item_key) {
+                    new_element.appendChild(data2xml(item_key, data[item_key]));
+                });
+            }
+        } else {
+            // string or null or something plain
+            new_element.appendChild(data);
+        }
+        return new_element;
+    };
+
+    Object.keys(parameters).forEach(function (param_name) {
+        var req = doc.createElementNS(
+            "http://www.webservicex.net/",
+            param_name
+        );
+        req.appendChild(data2xml(param_name, parameters[param_name]));
+        body.appendChild(req);
+    });
  
     return doc;
 };
