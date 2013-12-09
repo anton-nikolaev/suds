@@ -5,7 +5,6 @@ var util = require('util');
 var xmldom = require("xmldom");
 
 var dom = new xmldom.DOMImplementation();
-var document = dom.createDocument();
 var parser = new xmldom.DOMParser();
 var serialiser = new xmldom.XMLSerializer();
 
@@ -42,9 +41,20 @@ var Suds = module.exports = function Suds(options) {
 Suds.prototype._request = request;
 
 Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
-    console.log(util.inspect([uri, action, parameters, cb]));
+    //console.log(util.inspect([uri, action, parameters, cb]));
     var self = this;
- 
+
+    if ((
+        typeof parameters !== 'object'
+    ) || (
+        Object.keys(parameters).length !== 1
+    ) || (
+        !action.match(new RegExp(Object.keys(parameters)[0]))
+    )) {
+        return cb(Error('Request parameters should be an action object. ' + 
+            'But it is: ' + util.inspect(parameters)));
+    };
+
     var xml = self.createRequestXml(parameters);
  
     var options = {
@@ -169,35 +179,51 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
     )
     env.appendChild(body);
 
-    var data2xml = function (key, data) {
-        var new_element = doc.createElement(key);
+    var data2xml = function (element, key, data) {
+
         if ((typeof data === 'object') && (data !== null)) {
+
             if ('length' in data) {
-                // array
+                console.log('array for ' + key);
                 data.forEach(function (item) {
-                    new_element.appendChild(data2xml(key, item));
+                    var sub_element = doc.createElement(key);
+                    data2xml(sub_element, key, item);
+                    element.appendChild(sub_element);
                 });
+
             } else {
-                // object
+                console.log('object for ' + key);
                 Object.keys(data).forEach(function (item_key) {
-                    new_element.appendChild(data2xml(item_key, data[item_key]));
+                    if ((
+                        typeof data[item_key] === 'object'
+                    ) && (
+                        'length' in data[item_key]
+                    )) {
+                        // array here, no need to create new element
+                        data2xml(element, item_key, data);
+                    } else {
+                        var sub_element = doc.createElement(item_key);
+                        data2xml(sub_element, item_key, data[item_key]);
+                        element.appendChild(sub_element);
+                    }
                 });
+
             }
+
         } else {
             // string or null or something plain
-            new_element.appendChild(data);
+            console.log('plain for ' + key);
+            element.appendChild(doc.createTextNode(data));
+
         }
-        return new_element;
     };
 
-    Object.keys(parameters).forEach(function (param_name) {
-        var req = doc.createElementNS(
-            "http://www.webservicex.net/",
-            param_name
-        );
-        req.appendChild(data2xml(param_name, parameters[param_name]));
-        body.appendChild(req);
-    });
+    var action = Object.keys(parameters)[0];
+    var req = doc.createElement(action);
+    req.setAttribute("xmlns", "http://www.webservicex.net/");
+    body.appendChild(req);
+
+    data2xml(req, action, parameters[action]);
  
     return doc;
 };

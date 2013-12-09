@@ -61,12 +61,7 @@ describe("suds", function() {
             this.timeout(30000);
            
             Gsuds.GetGeoIP({
-                GetGeoIP: {IPAddress: "212.0.65.2"},
-                TestList: ['one', 'two'],
-                TestString: 'fjdkjfd',
-                TestNull: null,
-                TestEmpty: '',
-                TestUndef: undefined
+                GetGeoIP: { IPAddress: "212.0.65.2" }
             }, function (err, res) {
                 assert(!err, err);
                 console.log("Result: " + util.inspect(res));
