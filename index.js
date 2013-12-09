@@ -40,8 +40,10 @@ var Suds = module.exports = function Suds(options) {
 
 Suds.prototype._request = request;
 
-Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
-    //console.log(util.inspect([uri, action, parameters, cb]));
+Suds.prototype.callRemote = function callRemote(
+    uri, action, namespace, parameters, cb
+) {
+    console.log(util.inspect([uri, action, namespace, parameters, cb]));
     var self = this;
 
     if ((
@@ -55,7 +57,7 @@ Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
             'But it is: ' + util.inspect(parameters)));
     };
 
-    var xml = self.createRequestXml(parameters);
+    var xml = self.createRequestXml(parameters, namespace);
  
     var options = {
         method: "POST",
@@ -138,17 +140,19 @@ Suds.prototype._processResponse = function _processResponse(doc, cb) {
     cb(null, content);
 };
 
-Suds.prototype.createRequestXml = function createRequestXml(parameters) {
+Suds.prototype.createRequestXml = function createRequestXml(
+    parameters, namespace
+) {
     return [
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
         serialiser.serializeToString(
-        	this.createRequestDocument(parameters)
+        	this.createRequestDocument(parameters, namespace)
         ),
     ].join("\n");
 };
 
 Suds.prototype.createRequestDocument = function createRequestDocument(
-	parameters
+	parameters, namespace
 ) {
     var doc = dom.createDocument();
  

@@ -60,11 +60,11 @@ describe("suds", function() {
         it("should make a call", function(done) {
             this.timeout(30000);
            
-            Gsuds.GetGeoIP({
-                GetGeoIP: { IPAddress: "212.0.65.2" }
+            Gsuds.GetGeoIP('http://www.webservicex.net/', {
+                GetGeoIP: { IPAddress: "8.8.8.8" }
             }, function (err, res) {
                 assert(!err, err);
-                console.log("Result: " + typeof res);
+                //console.log("Result: " + util.inspect(Object.keys(res)));
                 return done();
             });
         });
