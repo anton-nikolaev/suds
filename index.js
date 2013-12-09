@@ -66,7 +66,9 @@ Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
         },
         body: xml
     };
-    console.log(util.inspect(xml));
+
+    //console.log('XML REQUEST: ');
+    //console.log(util.inspect(xml));
  
     this._request.call(this._request, options, function(err, res, data) {
         if (err) {
@@ -90,6 +92,9 @@ Suds.prototype.callRemote = function callRemote(uri, action, parameters, cb) {
             return cb(Error("couldn't parse response"));
         }
        
+        //console.log('XML REPLY: ');
+        //console.log(util.inspect(data));
+
         self._processResponse(doc.documentElement, function (e, result) {
             if (e) 
                 return cb(e);
@@ -107,20 +112,21 @@ Suds.prototype._processResponse = function _processResponse(doc, cb) {
         cb(new Error("invalid root tag type in response"));
     }
  
-    var fault = [].slice.call(doc.childNodes).filter(function(e) {
-        return 
-            e.namespaceURI === "http://schemas.xmlsoap.org/soap/envelope/" &&
-            e.localName === "Fault";
-    }).shift();
- 
+    var fault, body, node;
+    for (var i = 0; i < doc.childNodes.length; ++i) {
+        node = doc.childNodes[i];
+
+        if (node.namespaceURI !== "http://schemas.xmlsoap.org/soap/envelope/")
+            continue;
+
+        if (node.localName === 'Fault')
+            fault = node;
+        else if (node.localName === 'Body')
+            body = node;
+    };
+
     if (fault)
         return cb(fault);
- 
-    var body = [].slice.call(doc.childNodes).filter(function(e) {
-        return
-            e.namespaceURI === "http://schemas.xmlsoap.org/soap/envelope/" && 
-            e.localName === "Body";
-    }).shift();
  
     if (!body)
         return cb(new Error("couldn't find response body"));

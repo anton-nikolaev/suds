@@ -64,7 +64,7 @@ describe("suds", function() {
                 GetGeoIP: { IPAddress: "212.0.65.2" }
             }, function (err, res) {
                 assert(!err, err);
-                console.log("Result: " + util.inspect(res));
+                console.log("Result: " + typeof res);
                 return done();
             });
         });
