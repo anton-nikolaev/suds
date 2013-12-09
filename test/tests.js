@@ -60,6 +60,19 @@ describe("suds", function() {
         it("should make a call", function(done) {
             this.timeout(30000);
            
+            Gsuds.addHeaders({
+                "awss:Session": {
+                    content: {
+                        "awss:SessionId": "Some Session IDentifier",
+                        "awss:SequenceNumber": 3,
+                        "awss:SecurityToken": "someRANDjunk"
+                    },
+                    attrs: {
+                        "xmlns:awss": "http://www.webservicex.net/" +
+                            "WBS_Session.xsd"
+                    }
+                }
+            });
             Gsuds.GetGeoIP('http://www.webservicex.net/', {
                 GetGeoIP: { IPAddress: "8.8.8.8" }
             }, function (err, res) {

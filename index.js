@@ -12,11 +12,35 @@ var serialiser = new xmldom.XMLSerializer();
 	var suds = new Suds();
 or
 	var suds = new Suds({
-		headers: [],
+		headers: {},
 		uri: "http://www.webservicex.net/globalweather.asmx"
 	});
 	suds.loadWsdl(file path or url);
 	
+			'<awss:Session ' +
+			'xmlns:awss="http://xml.amadeus.com/ws/2009/01/' +
+				'WBS_Session-2.0.xsd">' +
+			'<awss:SessionId>' + ss.id + '</awss:SessionId>' +
+			'<awss:SequenceNumber>' + ss.seq_num + '</awss:SequenceNumber>' +
+			'<awss:SecurityToken>' + ss.stoken + '</awss:SecurityToken>' +
+			'</awss:Session>'
+
+    suds.addHeaders({
+        "awss:Session": {
+            content: {
+                "awss:SessionId": "Some Session IDentifier",
+                "awss:SequenceNumber": 3,
+                "awss:SecurityToken": "someRANDjunk"
+            },
+            attrs: {
+                "xmlns:awss": "http://www.webservicex.net/WBS_Session.xsd"
+            }
+        },
+        "someotherheader": {
+            ...
+        }
+    });
+
 	suds.callRemote(action, parameters, function (err) {
 		...
 	});
@@ -27,7 +51,7 @@ or
 var Suds = module.exports = function Suds(options) {
     options = options || {};
  
-    this._headers = options.headers || [];
+    this._headers = options.headers || {};
  
     if (options.request) {
         this._request = options.request;
@@ -38,12 +62,19 @@ var Suds = module.exports = function Suds(options) {
     }
 };
 
+Suds.prototype.addHeaders = function addHeaders(headers) {
+    var self = this;
+    Object.keys(headers).forEach(function (root_key) {
+        self._headers[root_key] = headers[root_key];
+    });
+};
+
 Suds.prototype._request = request;
 
 Suds.prototype.callRemote = function callRemote(
     uri, action, namespace, parameters, cb
 ) {
-    console.log(util.inspect([uri, action, namespace, parameters, cb]));
+    //console.log(util.inspect([uri, action, namespace, parameters, cb]));
     var self = this;
 
     if ((
@@ -154,6 +185,7 @@ Suds.prototype.createRequestXml = function createRequestXml(
 Suds.prototype.createRequestDocument = function createRequestDocument(
 	parameters, namespace
 ) {
+    var self = this;
     var doc = dom.createDocument();
  
     var env = doc.createElementNS(
@@ -179,22 +211,12 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
         "http://schemas.xmlsoap.org/soap/encoding/"
     );
  
-    this._headers.forEach(function(header) {
-        // TODO: add custom headers
-    });
- 
-    var body = doc.createElementNS(
-        "http://schemas.xmlsoap.org/soap/envelope/",
-        "SOAP-ENV:Body"
-    )
-    env.appendChild(body);
-
     var data2xml = function (element, key, data) {
 
         if ((typeof data === 'object') && (data !== null)) {
 
             if ('length' in data) {
-                console.log('array for ' + key);
+                //console.log('array for ' + key);
                 data.forEach(function (item) {
                     var sub_element = doc.createElement(key);
                     data2xml(sub_element, key, item);
@@ -202,7 +224,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
                 });
 
             } else {
-                console.log('object for ' + key);
+                //console.log('object for ' + key);
                 Object.keys(data).forEach(function (item_key) {
                     if ((
                         typeof data[item_key] === 'object'
@@ -222,11 +244,43 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
 
         } else {
             // string or null or something plain
-            console.log('plain for ' + key);
+            //console.log('plain for ' + key);
             element.appendChild(doc.createTextNode(data));
 
         }
     };
+
+    var headers_keys = Object.keys(self._headers);
+    if (headers_keys.length > 0) {
+        var headers = doc.createElementNS(
+            "http://schemas.xmlsoap.org/soap/envelope/",
+            "SOAP-ENV:Header"
+        );
+        headers.setAttribute(
+            "xmlns",
+            "http://schemas.xmlsoap.org/soap/envelope/"
+        );
+        env.appendChild(headers)
+
+        headers_keys.forEach(function(root_key) {
+            var header = doc.createElement(root_key);
+            headers.appendChild(header);
+    
+            var this_header = self._headers[root_key];
+            if ('attrs' in this_header) {
+                Object.keys(this_header.attrs).forEach(function (attr) {
+                    header.setAttribute(attr, this_header.attrs[attr]);
+                });
+            }
+            data2xml(header, root_key, self._headers[root_key].content);
+        });
+    } 
+ 
+    var body = doc.createElementNS(
+        "http://schemas.xmlsoap.org/soap/envelope/",
+        "SOAP-ENV:Body"
+    )
+    env.appendChild(body);
 
     var action = Object.keys(parameters)[0];
     var req = doc.createElement(action);
