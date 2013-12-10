@@ -21,6 +21,7 @@
   "dependencies": {
     "xmldom": "~0.1.16",
     "request": "~2.27.0",
+    "xml2js": "",
     "wsdl": "git://github.com/anton-nikolaev/wsdl.git"
   },
   "devDependencies": {

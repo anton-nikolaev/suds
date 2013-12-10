@@ -3,6 +3,7 @@ var url = require("url");
 var WSDL = require("wsdl");
 var util = require('util');
 var xmldom = require("xmldom");
+var xml2js = require('xml2js').parseString;
 
 var dom = new xmldom.DOMImplementation();
 var parser = new xmldom.DOMParser();
@@ -114,29 +115,43 @@ Suds.prototype.callRemote = function callRemote(
                 ". Res: " + res + ", Data: " + data
             ));
         }
-       
-        try {
-            var doc = parser.parseFromString(data);  
-        } catch (e) {
-            return cb(e);
-        }
-       
-        if (!doc) {
-            return cb(Error("couldn't parse response"));
-        }
-       
-        //console.log('XML REPLY: ');
-        //console.log(util.inspect(data));
 
-        self._processResponse(doc.documentElement, function (e, result) {
-            if (e) 
-                return cb(e);
+        if (!res.headers['content-type'].match(new RegExp('text/xml'))) {
+            return cb(Error('Invalid content type (should be text/xml): ' +
+                res.contentType));
+        }
+       
+        self._procXMLResponse(data, function (e, result) {
+            if (e) return cb(e);
             return cb(null, result);
         });
     });
 };
 
-Suds.prototype._processResponse = function _processResponse(doc, cb) {
+Suds.prototype._procXMLResponse = function _procXMLResponse(data, cb) {
+    var self = this;
+    
+    try {
+        var doc = parser.parseFromString(data);  
+    } catch (e) {
+        return cb(e);
+    }
+   
+    if (!doc) {
+        return cb(Error("couldn't parse response"));
+    }
+
+    //console.log('XML REPLY: ');
+    //console.log(util.inspect(data));
+
+    self._procDocumentResponse(doc.documentElement, function (e, result) {
+        if (e) return cb(e);
+        return cb(null, result);
+    });
+};
+   
+Suds.prototype._procDocumentResponse = function _procDocumentResponse(doc, cb) {
+
     if ((
         doc.namespaceURI !== "http://schemas.xmlsoap.org/soap/envelope/"
     ) || (
@@ -145,7 +160,7 @@ Suds.prototype._processResponse = function _processResponse(doc, cb) {
         cb(new Error("invalid root tag type in response"));
     }
  
-    var fault, body, node;
+    var fault, body, header, node;
     for (var i = 0; i < doc.childNodes.length; ++i) {
         node = doc.childNodes[i];
 
@@ -155,7 +170,10 @@ Suds.prototype._processResponse = function _processResponse(doc, cb) {
         if (node.localName === 'Fault')
             fault = node;
         else if (node.localName === 'Body')
-            body = node;
+            body = serialiser.serializeToString(node);
+        else if (node.localName === 'Header')
+            header = serialiser.serializeToString(node);
+        //console.log(node.localName);
     };
 
     if (fault)
@@ -164,11 +182,35 @@ Suds.prototype._processResponse = function _processResponse(doc, cb) {
     if (!body)
         return cb(new Error("couldn't find response body"));
  
+    xml2js(body, function (err, body_js) {
+        if (err)
+            return cb(Error('Cant parse XML body to JSON: ' + err));
+
+        body_js = body_js[Object.keys(body_js).shift()];
+
+        if (header) {
+            xml2js(header, function (errh, header_js) {
+                if (errh)
+                    return cb(Error('Cant parse XML header to JSON: ' + errh));
+
+                header_js = header_js[Object.keys(header_js).shift()];
+
+                return cb(null, { body: body_js, header: header_js });
+            });
+
+        } else {
+            return cb(null, { body: body_js });
+
+        }
+    });
+    
+/*
     var content = [].slice.call(body.childNodes).filter(function(e) {
         return e.localName;
     }).shift();
  
     cb(null, content);
+*/
 };
 
 Suds.prototype.createRequestXml = function createRequestXml(
@@ -284,7 +326,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
 
     var action = Object.keys(parameters)[0];
     var req = doc.createElement(action);
-    req.setAttribute("xmlns", "http://www.webservicex.net/");
+    req.setAttribute("xmlns", namespace);
     body.appendChild(req);
 
     data2xml(req, action, parameters[action]);

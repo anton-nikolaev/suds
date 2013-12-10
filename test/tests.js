@@ -22,7 +22,6 @@ describe("suds", function() {
             });
         });
 	
-/*
 		it("should load from file", function (done) {
 			this.timeout(30000);
 			
@@ -52,7 +51,6 @@ describe("suds", function() {
 				});
 			});
 		});
-*/
     });
 
     describe("callRemote", function() {
@@ -77,7 +75,10 @@ describe("suds", function() {
                 GetGeoIP: { IPAddress: "8.8.8.8" }
             }, function (err, res) {
                 assert(!err, err);
-                //console.log("Result: " + util.inspect(Object.keys(res)));
+                var result = res.body.GetGeoIPResponse[0].GetGeoIPResult;
+                //console.log(result);
+                assert(result[0].CountryName == 'United States');
+                assert(result[0].CountryCode == 'USA');
                 return done();
             });
         });
