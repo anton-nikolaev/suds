@@ -82,8 +82,6 @@ Suds.prototype.callRemote = function callRemote(
         typeof parameters !== 'object'
     ) || (
         Object.keys(parameters).length !== 1
-    ) || (
-        !action.match(new RegExp(Object.keys(parameters)[0]))
     )) {
         return cb(Error('Request parameters should be an action object. ' + 
             'But it is: ' + util.inspect(parameters)));
