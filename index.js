@@ -89,7 +89,7 @@ Suds.prototype.callRemote = function callRemote(
             'But it is: ' + util.inspect(parameters)));
     };
 
-    var xml = self.createRequestXml(parameters, namespace);
+    var xml = self.createRequestXml(parameters, namespace, action);
  
     var options = {
         method: "POST",
@@ -214,18 +214,18 @@ Suds.prototype._procDocumentResponse = function _procDocumentResponse(doc, cb) {
 };
 
 Suds.prototype.createRequestXml = function createRequestXml(
-    parameters, namespace
+    parameters, namespace, action
 ) {
     return [
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>",
         serialiser.serializeToString(
-        	this.createRequestDocument(parameters, namespace)
+        	this.createRequestDocument(parameters, namespace, action)
         ),
     ].join("\n");
 };
 
 Suds.prototype.createRequestDocument = function createRequestDocument(
-	parameters, namespace
+	parameters, namespace, action
 ) {
     var self = this;
     var doc = dom.createDocument();
@@ -253,6 +253,10 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
         "http://schemas.xmlsoap.org/soap/encoding/"
     );
  
+    // recursive function, that creates XML structure.
+    // element - createElement() result, which will be used for appendChild()
+    // key - if array, then all elements created will have this name
+    // data - json-object, which will be used as source for data convert to XML
     var data2xml = function (element, key, data) {
 
         if ((typeof data === 'object') && (data !== null)) {
@@ -324,12 +328,12 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
     )
     env.appendChild(body);
 
-    var action = Object.keys(parameters)[0];
-    var req = doc.createElement(action);
+    var root_param = Object.keys(parameters)[0];
+    var req = doc.createElement(root_param);
     req.setAttribute("xmlns", namespace);
     body.appendChild(req);
 
-    data2xml(req, action, parameters[action]);
+    data2xml(req, action, parameters[root_param]);
  
     return doc;
 };
