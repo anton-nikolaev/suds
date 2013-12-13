@@ -276,7 +276,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
                         'length' in data[item_key]
                     )) {
                         // array here, no need to create new element
-                        data2xml(element, item_key, data);
+                        data2xml(element, item_key, data[item_key]);
                     } else {
                         var sub_element = doc.createElement(item_key);
                         data2xml(sub_element, item_key, data[item_key]);
