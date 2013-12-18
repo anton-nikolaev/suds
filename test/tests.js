@@ -71,7 +71,7 @@ describe("suds", function() {
                     }
                 }
             });
-            Gsuds.GetGeoIP('http://www.webservicex.net/', {
+            Gsuds.GetGeoIP({
                 GetGeoIP: { IPAddress: "8.8.8.8" }
             }, function (err, res) {
                 assert(!err, err);

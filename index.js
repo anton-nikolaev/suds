@@ -328,7 +328,7 @@ Suds.prototype.createRequestDocument = function createRequestDocument(
 
     var root_param = Object.keys(parameters)[0];
     var req = doc.createElement(root_param);
-    req.setAttribute("xmlns", namespace);
+    if (namespace) req.setAttribute("xmlns", namespace);
     body.appendChild(req);
 
     data2xml(req, action, parameters[root_param]);
@@ -532,12 +532,31 @@ Suds.prototype.loadWsdl = function load(wsdlUri, cb) {
                             // TODO: use = 'encoding' is not supported
                             return;
                         }
+
                     }
+
+                    // search message name in portTypes
+                    var msg_name;
+                    wsdl.portTypes[0].operations.forEach(function (portType) {
+                        if (portType.name != operation.name) return;
+                        if (!('input' in portType)) return;
+                        if (!('message' in portType.input)) return;
+                        msg_name = portType.input.message[1];
+                    });
+
+                    // search namespace for the message
+                    wsdl.messages.forEach(function (message) {
+                        if (message.name[1] != msg_name) return;
+                        if (!('parts' in message)) return;
+                        if (!('element' in message.parts[0])) return;
+                        req.push(message.parts[0].element);
+                    });
 
                     self[operation.name] = self.callRemote.bind(
                         self,
                         port.soap.address.location,
-                        operation.soapOperation.soapAction
+                        operation.soapOperation.soapAction,
+                        req[0][0] // namespace
                     );
                 });
             });
